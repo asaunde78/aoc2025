@@ -144,66 +144,25 @@ with open("input.txt", "r") as f:
         circuit_map[point] = c
     
     
-    for d,n1,n2 in distances[:1000]: 
-        print(d,n1,n2,)
+    for d,n1,n2 in distances[:]: 
+        # print(d,n1,n2,)
         
         if circuit_map[n1].get_nodes() != circuit_map[n2].get_nodes():
-            # print(n1,n2,circuit_map[n1],circuit_map[n2])
-            # print("merging n1 and n2", n1, n2)
-            # print("\tnodes to merge", circuit_map[n1].get_nodes(), circuit_map[n2].get_nodes())
+        
             circuit_map[n1].merge(circuit_map[n2])
             del circuit_map[n2]
             
+            # PRINT STATEMENT FOR PART 2
+            if len(circuit_map[n1].get_nodes()) == len(points):
+                print("Answer", d,n1,n2, n1.x*n2.x)
             
             for node in circuit_map[n1].get_nodes():
                 circuit_map[node] = circuit_map[n1]
-            # new = new_circuit(circuit_map[n1], circuit_map[n2])
-            # circuit_map[n1] = new
-            # circuit_map[n2] = new
             
-            
-        
-        # found = False 
-        # for circuit in circuit_map.values():
-        #     if circuit.has_node(n1):
-        #         print("adding node")
-        #         found = True
-        #         circuit.add_node(n2)
-        #         break 
-        #     if circuit.has_node(n2):
-        #         print("adding node")
-        #         circuit.add_node(n1)
-        #         found = True
-        #         break
-        #     print("not in any circuits")
-        # if found:
-        #     continue
-        # if n1 in circuit_map and n2 in circuit_map:
-        #     continue 
-        # if n1 in circuit_map and n2 not in circuit_map:
-        #     circuit_map[n1].add_node(n2)
-        #     print("\tAdding new node to Circuit", n2)
-        #     continue
-        # if n2 in circuit_map and n1 not in circuit_map:
-        #     circuit_map[n2].add_node(n1)
-        #     print("\tAdding new node to Circuit", n1)
-        #     continue
-        # if n1 not in circuit_map and n2 not in circuit_map:
-        #     print("\tAdding to Circuit Map:",n1,n2)
-        #     new_circ = Circuit()
-        #     new_circ.add_node(n1)
-        #     new_circ.add_node(n2)
-        #     circuit_map[n1] = new_circ 
-        #     circuit_map[n2] = new_circ
-        #     continue
-        # print("what", d,n1,n2)
-        
-    # for key,val in circuit_map.items():
-    #     print(key, val.get_nodes(), val.get_count())
-    print()
-    total = 1
-    for circuit in sorted(set(circuit_map.values()), key=lambda x: x.get_count(), reverse=True)[:3]:
-        total *= circuit.get_count()
-        print(circuit, circuit.get_count(), circuit.get_nodes())
-    print("--------\n Total: ", total)
+    # print()
+    # total = 1
+    # for circuit in sorted(set(circuit_map.values()), key=lambda x: x.get_count(), reverse=True)[:3]:
+    #     total *= circuit.get_count()
+    #     print(circuit, circuit.get_count(), circuit.get_nodes())
+    # print("--------\n Total: ", total)
     
