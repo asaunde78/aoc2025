@@ -7,7 +7,7 @@ class Tile():
         self.prev = None 
         self.next = None
     def area(self, tile):
-        return abs((tile.x - self.x +1 ) * (tile.y - self.y +1))
+        return  (abs(tile.x - self.x) + 1 ) * (abs(tile.y - self.y) + 1 )
     def other_corners(self, tile):
         if(self.x == tile.x or self.y == tile.y):
             return None 
@@ -27,9 +27,16 @@ class Grid():
     def __init__(self):
         self.tile_list = []
         self.tiles = {}
+        self.reversed_tiles = {}
         self.enclosed = {}
         self.largest_x = 0
         self.largest_y = 0
+        self.outlines = {}
+        self.curl = 0
+    def get_curl(self, tile1, tile2):
+        if tile1.x == tile2.x:
+            return tile1.y > tile2.y
+        return tile1.x < tile2.x 
     def has_tile(self, tile):
         if tile.x not in self.tiles:
             return False 
@@ -51,6 +58,10 @@ class Grid():
             self.tiles[x].update({y:tile_out})
         else:
             self.tiles[x] = {y:tile_out}
+        if y in self.reversed_tiles:
+            self.reversed_tiles[y].update({x:tile_out})
+        else:
+            self.reversed_tiles[y] = {x:tile_out}
         return tile_out 
     def tile_between(self, tile1, tile2):
         xs = [tile1.x, tile2.x]
@@ -75,7 +86,111 @@ class Grid():
                 # return True
         # print("nothing found between", tile1, tile2)
         return output
-    def tile_enclosed(self, tile):
+    def set_curl(self, val):
+        self.curl = val
+    def is_colinear(self, tile1, tile2):
+        return (tile1.x == tile2.x or tile1.y == tile2.y)
+    def curl_between(self, _dict, _min, _max, curl_val, tile1, tile2):
+        between_slices = sorted(self.filter_keys(_dict.keys(), lambda i: i < _max and i > _min), reverse=True)
+        
+        # if len(between_slices) == 0:
+        #     if(self.has_tile(tile1) and self.has_tile(tile2)):
+        #         return True
+        #     return False 
+        pen_loops = []
+        for slice_coord in between_slices:
+            above = {}
+            below = {}
+            zeros = {}
+            for coord, tile in _dict[slice_coord].items():
+                # print(slice_coord, coord, tile, curl_val)
+                if coord < curl_val:
+                    below.update({coord:tile})
+                if coord > curl_val:
+                    above.update({coord:tile})
+                if coord == curl_val:
+                    zeros.update({coord:tile})
+            # print("AB", slice_coord, above, below)
+            
+            
+            for coord, b in below.items():
+                # print("Coordinate and keys: ", coord, above.keys())
+                
+                if (b.next  in above.values()):
+                    
+                    # print("FOUND FOUND FOUND", b, b.prev)
+                    pen_loops.append([b, b.next])
+                if (b.prev  in above.values()):
+                    
+                    # print("FOUND FOUND FOUND", b, b.prev)
+                    pen_loops.append([b.prev, b])
+            for coord, zero in zeros.items():
+                if zero.prev in below.values():
+                    pen_loops.append([zero, zero.prev ]) 
+                if zero.next in below.values():
+                    pen_loops.append([zero, zero.next]) 
+                if zero.prev in above.values():
+                    pen_loops.append([zero, zero.prev]) 
+                if zero.next in above.values():
+                    pen_loops.append([zero, zero.next]) 
+            # print("ABOVE SO BELOW", above, below)
+        # if len(pen_loops) == 0:
+        #     # print(" NO LOOPS")
+        #     if(self.has_tile(tile1) and self.has_tile(tile2)):
+        #         return True
+        #     return False
+        # print("PEN LOOPS", [[self.get_curl(t1,t2), t1, t2] for t1,t2 in pen_loops])
+        return pen_loops
+        
+
+            
+            
+    def line_enclosed(self, tile1, tile2):
+        print("---------------------Starting Line Check for: ", tile1, tile2,)
+        if(not self.is_colinear(tile1, tile2)):
+            print("this is not a straight line")
+            return False
+        if(not self.tile_enclosed(tile1)):
+            print("Not enclosed: ", tile1)
+            return False
+        if(not self.tile_enclosed(tile2)):
+            print("Not enclosed: ", tile2)
+            return False
+        
+        if( tile1.x == tile2.x):
+            min_y, max_y = sorted([tile1.y, tile2.y])
+            loops = self.curl_between(self.reversed_tiles,min_y, max_y,tile1.x, tile1, tile2)
+           
+            if len(loops) == 0:
+                return self.tile_enclosed(Tile(tile1.x, (tile1.y + tile2.y) // 2))
+            for t1, t2 in loops:
+                test_tile1 = Tile(tile1.x, t2.y + 1) 
+                test_tile2 = Tile(tile1.x, t2.y - 1)
+                
+                if not self.tile_enclosed(test_tile1):
+                    return False 
+                if not self.tile_enclosed(test_tile2):
+                    return False 
+            return True 
+        else:
+            min_x, max_x = sorted([tile1.x, tile2.x])
+            loops = self.curl_between(self.tiles,min_x, max_x,tile1.y, tile1, tile2)
+            if len(loops) == 0:
+                return self.tile_enclosed(Tile((tile1.x + tile2.x) // 2, tile2.y))
+            for t1, t2 in loops:
+               
+                test_tile1 = Tile(t1.x + 1, tile1.y) 
+                test_tile2 = Tile(t1.x - 1, tile2.y)
+                
+                if not self.tile_enclosed(test_tile1):
+                    return False 
+                if not self.tile_enclosed(test_tile2):
+                    return False 
+                
+            return True 
+    
+    def tile_enclosed(self, _tile):
+        tile = self.get_tile(_tile)
         if tile.x in self.enclosed and tile.y in self.enclosed[tile.x]:
             # print("tile found:" , tile)
             return self.enclosed[tile.x][tile.y]
@@ -157,15 +272,22 @@ class Grid():
                 print(f"VERY BAD: {t1} {t1.next} {t1.prev} {t2} {t2.next} {t2.prev}")
             # print(f"creating curl {t1}, {t2}, {t1.y > t2.y}")
             found_prev = False
-            if(prev_tiles):
+            if(t1.x == t2.x):
+                c = t1.y > t2.y
+            else:
+                c = t1.x < t2.x
+            if(prev_tiles and c == prev_tiles[2]):
                 # print("CHECKING", t1, t2, t1.prev, t2.prev, prev_tiles)
+                
+                # print("CURL: ", c)
+
                 if(t1.prev in prev_tiles or t2.prev in prev_tiles):
                     # print("found tile hehe")
                     found_prev = True
                 if(t1.next in prev_tiles or t2.next in prev_tiles):
                     # print("found tile hehe")
                     found_prev = True
-            prev_tiles = (t1, t2)
+            prev_tiles = (t1, t2, c)
             if t1.y > t2.y:
                 # print(f"curl direction {t1}, {t2}")
                 if not found_prev:
@@ -179,16 +301,44 @@ class Grid():
         c1 = curl["t1->t2"]
         c2 = curl["t2->t1"]
         
-        # print("final check", tile, c1, c2, (c1-c2) % 2)
-        
-        if (c1-c2 ) > 0:
+        # print("final check", tile, c1, c2, (c1-c2), )
+        test = (c1-c2) if  self.curl else (c2-c1)
+
+        cond = test > 0 
+        if ( cond ):
+            if (tile.x in self.enclosed):
+                self.enclosed[tile.x][tile.y] = True 
+            else:
+                self.enclosed[tile.x] = {tile.y: True}
             return True
         
+        
+        if (tile.x in self.enclosed):
+            self.enclosed[tile.x][tile.y] = False 
+        else:
+            self.enclosed[tile.x] = {tile.y: False}
         return False
         
             # print(x,tile.x, keys, mindex, tile)
             
-            
+    def check_outline(self, tile1, tile2):
+        # tileset = frozenset([tile1,tile2])
+        # if(tileset in self.outlines):
+        #     return self.outlines[tileset]
+        # min_x, max_x = sorted((tile1.x, tile2.x)) 
+        # min_y, max_y = sorted((tile1.y, tile2.y)) 
+        if(self.is_colinear(tile1, tile2)):
+            return self.line_enclosed(tile1, tile2)
+        # print(tile1.other_corners(tile2), tile2.other_corners(tile1))
+        for corner in tile1.other_corners(tile2):
+            if not self.line_enclosed(tile1, corner):
+                return False
+
+        for corner in tile2.other_corners(tile1):
+            if not self.line_enclosed(tile2, corner):
+                return False
+        return True
+        
         
     def keys_inbetween(self, _dict, _min, _max):
         return list(filter(lambda x: x > _min and x < _max, _dict.keys()))
@@ -215,13 +365,18 @@ def setup(input_file):
             before = ti 
         start.set_next(ti)
         ti.set_prev(start)
+        
+        if(start.x == ti.x):
+            grid.set_curl(start.y > ti.y)
+        else:
+            grid.set_curl(start.x < ti.x)
         print(grid.largest_x, grid.largest_y)
-        print("finished parsing")
+        print("finished parsing", grid.curl)
     return grid 
             
         
-def draw(input_file):
-    grid = setup(input_file)
+def draw(grid, path):
+    
     largest = 0 
     img = Image.new("RGB", (grid.largest_x+1, grid.largest_y+1), 'white')
     print("created image")
@@ -245,46 +400,46 @@ def draw(input_file):
     # test = Tile(5,2)
     # img.putpixel((test.x, test.y), (0,0,255))
     # grid.tile_enclosed(test)
-    img.save("day9.png")
+    img.save(path)
+    return img
     
         
-def main(input_file):
+def main(input_file, drawing = ""):
     largest = 0 
     grid = setup(input_file)
+    img = None 
+    if drawing != "":
+        img = draw(grid, drawing)
     largest_pair = None
-    for t1 in grid.tile_list:
+    for ind, t1 in enumerate(grid.tile_list):
         for t2 in grid.tile_list:
             if t1 == t2:
                 continue
-    #         # img.putpixel((t1.x, t1.y), (100))
             
-            between = grid.tile_between(t1,t2)
-            
-            if between != []:
-                continue  
-            # print(between)
-            corners = t1.other_corners(t2)
-            if not corners:
-                continue 
-            good = True
-            for corner in corners: 
-                
-                select_tile = grid.get_tile(corner)
-                if not grid.tile_enclosed(select_tile):
-                    good = False 
-                    break
-
-            
-            if not good:
-                continue 
             area =  t1.area(t2)
-            if area > largest:
-                print("Setting Largest", area, t1,t2)
+            if area < largest:
+                continue
+            print("\n----------Checking Outline,",t1,t2)
+            outline = grid.check_outline(t1,t2)
+            print("Outline results: ", outline, "Results:", area, t1,t2, ind/len(grid.tile_list))
+            if outline:
+                print("Setting Largest", area, t1,t2, grid.tile_between(t1,t2))
                 
                 largest = area
                 largest_pair = (t1, t2)
+    if img:
+        for point in largest_pair:
+            img.putpixel( (point.x,point.y), (0,0,255))
+        img.save(drawing)
     print("done", largest, largest_pair)
 
-draw("new_test.txt")
-# main("input.txt")
+# main("test.txt", drawing="p1.png") 
+
+# main("advent_test.txt", drawing="p2.png") 
+
+#checking outline <97819,50252> <97819,49040> 0.9979838709677419
+#done 1537423615 (<94851,50236>, <5605,67462>)
+
+# draw(setup("new_test.txt"),"d9.png")
+main("input.txt")#, drawing="videos/d9.png")
     
