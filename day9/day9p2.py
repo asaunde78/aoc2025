@@ -441,5 +441,5 @@ def main(input_file, drawing = ""):
 #done 1537423615 (<94851,50236>, <5605,67462>)
 
 # draw(setup("new_test.txt"),"d9.png")
-main("input.txt")#, drawing="videos/d9.png")
+main("test.txt")#, drawing="videos/d9.png")
     
